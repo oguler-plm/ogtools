@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOM Compare — OG Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #181c27; --border: #252a38;
+      --accent: #4f8ef7; --accent2: #7c3aed;
+      --text: #e8eaf0; --muted: #6b7280;
+      --green: #4ade80; --green-bg: rgba(34,197,94,0.1);
+      --red: #f87171;   --red-bg: rgba(248,113,113,0.1);
+      --yellow: #fbbf24; --yellow-bg: rgba(251,191,36,0.1);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2.5rem; height: 60px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: rgba(15,17,23,0.92);
+      backdrop-filter: blur(10px); z-index: 100;
+    }
+    .nav-left { display: flex; align-items: center; gap: 1rem; }
+    .back-btn { color: var(--muted); text-decoration: none; font-size: 0.82rem; display: flex; align-items: center; gap: 0.35rem; transition: color 0.15s; }
+    .back-btn:hover { color: var(--text); }
+    .nav-divider { color: var(--border); }
+    .nav-logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; font-weight: 700; }
+    .nav-logo .og { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-right { font-size: 0.78rem; color: var(--muted); }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 5rem; }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.35rem; }
+    .page-header p { font-size: 0.85rem; color: var(--muted); }
+
+    /* UPLOAD AREA */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .upload-box {
+      background: var(--surface); border: 1.5px dashed var(--border);
+      border-radius: 12px; padding: 1.75rem; text-align: center;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .upload-box:hover, .upload-box.drag { border-color: var(--accent); background: rgba(79,142,247,0.04); }
+    .upload-box.loaded { border-color: rgba(74,222,128,0.4); border-style: solid; }
+    .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 1.75rem; margin-bottom: 0.6rem; }
+    .upload-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .upload-name { font-size: 0.82rem; color: var(--text); font-weight: 500; }
+    .upload-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+    .upload-check { color: var(--green); font-size: 0.8rem; margin-top: 0.4rem; font-weight: 500; }
+
+    .run-btn {
+      width: 100%; padding: 0.85rem; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-family: 'Inter', sans-serif; font-size: 0.9rem;
+      font-weight: 600; border: none; cursor: pointer;
+      transition: opacity 0.2s; margin-bottom: 2rem;
+    }
+    .run-btn:hover { opacity: 0.9; }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* STATS */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 2rem; }
+    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2,1fr); } }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+    .stat-num { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-top: 0.1rem; }
+    .stat-added   .stat-num { color: var(--green); }
+    .stat-removed .stat-num { color: var(--red); }
+    .stat-changed .stat-num { color: var(--yellow); }
+    .stat-same    .stat-num { color: var(--muted); }
+
+    /* FILTER */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+    .filter-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .filter-btn { font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.8rem; border-radius: 100px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .filter-btn.active, .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+    .filter-btn.active-green  { border-color: var(--green);  color: var(--green);  background: var(--green-bg); }
+    .filter-btn.active-red    { border-color: var(--red);    color: var(--red);    background: var(--red-bg); }
+    .filter-btn.active-yellow { border-color: var(--yellow); color: var(--yellow); background: var(--yellow-bg); }
+
+    .export-btn { font-size: 0.78rem; font-weight: 600; padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 0.4rem; }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { padding: 0.75rem 1rem; text-align: left; font-size: 0.7rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--surface); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    td { padding: 0.65rem 1rem; vertical-align: top; }
+
+    .badge { display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 100px; letter-spacing: 0.5px; white-space: nowrap; }
+    .badge-added     { background: var(--green-bg);  color: var(--green); }
+    .badge-removed   { background: var(--red-bg);    color: var(--red); }
+    .badge-changed   { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-nochange  { background: rgba(107,114,128,0.1); color: var(--muted); }
+
+    .change-line { display: block; line-height: 1.8; }
+
+    .empty-state { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.85rem; }
+
+    footer { border-top: 1px solid var(--border); padding: 1.5rem 2.5rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: var(--muted); }
+    footer strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <a class="back-btn" href="index.html">← Back</a>
+    <span class="nav-divider">/</span>
+    <div class="nav-logo"><span class="og">OG</span> Tools</div>
+  </div>
+  <div class="nav-right">BOM Compare v1.0</div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>BOM Compare</h1>
+    <p>Upload OLD and NEW BOM files (Excel). Results appear below — no data is sent to any server.</p>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-grid">
+    <div class="upload-box" id="dropOld" onclick="document.getElementById('fileOld').click()">
+      <input type="file" id="fileOld" accept=".xlsx,.xls" onchange="handleFile('old', this)" />
+      <div class="upload-icon">📂</div>
+      <div class="upload-label">OLD BOM</div>
+      <div class="upload-name" id="nameOld">Click to upload</div>
+      <div class="upload-hint">.xlsx / .xls</div>
+      <div class="upload-check" id="checkOld" style="display:none">✓ Loaded</div>
+    </div>
+    <div class="upload-box" id="dropNew" onclick="document.getElementById('fileNew').click()">
+      <input type="file" id="fileNew" accept=".xlsx,.xls" onchange="handleFile('new', this)" />
+      <div class="upload-icon">📂</div>
+      <div class="upload-label">NEW BOM</div>
+      <div class="upload-name" id="nameNew">Click to upload</div>
+      <div class="upload-hint">.xlsx / .xls</div>
+      <div class="upload-check" id="checkNew" style="display:none">✓ Loaded</div>
+    </div>
+  </div>
+
+  <button class="run-btn" id="runBtn" onclick="compare()" disabled>Compare BOMs</button>
+
+  <!-- STATS -->
+  <div class="stats" id="statsArea" style="display:none">
+    <div class="stat-card stat-added">
+      <div class="stat-num" id="sAdded">0</div>
+      <div class="stat-label">Added</div>
+    </div>
+    <div class="stat-card stat-removed">
+      <div class="stat-num" id="sRemoved">0</div>
+      <div class="stat-label">Removed</div>
+    </div>
+    <div class="stat-card stat-changed">
+      <div class="stat-num" id="sChanged">0</div>
+      <div class="stat-label">Changed</div>
+    </div>
+    <div class="stat-card stat-same">
+      <div class="stat-num" id="sSame">0</div>
+      <div class="stat-label">Not Changed</div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar" id="toolbar" style="display:none">
+    <div class="filter-btns">
+      <button class="filter-btn active" onclick="setFilter('ALL', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('ADDED', this)">Added</button>
+      <button class="filter-btn" onclick="setFilter('REMOVED', this)">Removed</button>
+      <button class="filter-btn" onclick="setFilter('CHANGED', this)">Changed</button>
+      <button class="filter-btn" onclick="setFilter('NOT CHANGE', this)">Not Changed</button>
+    </div>
+    <button class="export-btn" onclick="exportExcel()">⬇ Export Excel</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap" id="tableWrap" style="display:none">
+    <table>
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Lvl</th>
+          <th>Title</th>
+          <th>Parent</th>
+          <th>OLD Rev</th>
+          <th>NEW Rev</th>
+          <th>OLD QTY</th>
+          <th>NEW QTY</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+  </div>
+
+  <div class="empty-state" id="emptyState">
+    <div class="icon">📋</div>
+    <p>Upload both BOM files and click <strong>Compare BOMs</strong> to see results.</p>
+  </div>
+</div>
+
+<footer>
+  <span><strong>OG Tools</strong> — Engineering Utilities</span>
+  <span>Built by <strong>Osman Güler</strong></span>
+</footer>
+
+<script>
+  let oldBom = [], newBom = [], allResults = [];
+  let currentFilter = 'ALL';
+
+  function handleFile(type, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const rows = [];
+      for (let i = 1; i < data.length; i++) {
+        const r = data[i];
+        if (!r[0] || isNaN(Number(r[0]))) continue;
+        rows.push({
+          level:  Number(r[0]),
+          title:  String(r[1] || '').trim(),
+          rev:    String(r[2] || '').trim(),
+          desc:   String(r[3] || '').trim(),
+          parent: String(r[4] || '').trim(),
+          parentRev: String(r[5] || '').trim(),
+          qty:    Number(r[6]) || 0
+        });
+      }
+      if (type === 'old') {
+        oldBom = rows;
+        document.getElementById('nameOld').textContent = file.name;
+        document.getElementById('checkOld').style.display = 'block';
+        document.getElementById('dropOld').classList.add('loaded');
+      } else {
+        newBom = rows;
+        document.getElementById('nameNew').textContent = file.name;
+        document.getElementById('checkNew').style.display = 'block';
+        document.getElementById('dropNew').classList.add('loaded');
+      }
+      document.getElementById('runBtn').disabled = !(oldBom.length && newBom.length);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function compare() {
+    const matched = new Array(oldBom.length).fill(false);
+    const results = [];
+
+    for (const n of newBom) {
+      let foundIdx = -1;
+      for (let i = 0; i < oldBom.length; i++) {
+        if (matched[i]) continue;
+        if (oldBom[i].title === n.title && oldBom[i].parent === n.parent) {
+          foundIdx = i;
+          matched[i] = true;
+          break;
+        }
+      }
+
+      let status, oldRev = '', oldQty = 0;
+      if (foundIdx === -1) {
+        status = 'ADDED';
+      } else {
+        oldRev = oldBom[foundIdx].rev;
+        oldQty = oldBom[foundIdx].qty;
+        if (n.qty === 0) {
+          status = 'REMOVED';
+        } else {
+          const parts = [];
+          if (oldRev !== n.rev) parts.push('REVISION CHANGE');
+          if (oldQty !== n.qty) parts.push('QTY CHANGE');
+          status = parts.length ? parts.join('\n') : 'NOT CHANGE';
+        }
+      }
+
+      results.push({ status, level: n.level, title: n.title, parent: n.parent,
+                     oldRev, newRev: n.rev, oldQty, newQty: n.qty });
+    }
+
+    // REMOVED: unmatched old items — insert after their parent's block
+    for (let i = 0; i < oldBom.length; i++) {
+      if (matched[i]) continue;
+      const o = oldBom[i];
+      let insertAfter = -1;
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].title === o.parent) insertAfter = j;
+        if (results[j].parent === o.parent) insertAfter = j;
+      }
+      const rm = { status: 'REMOVED', level: o.level, title: o.title,
+                   parent: o.parent, oldRev: o.rev, newRev: '',
+                   oldQty: o.qty, newQty: 0 };
+      if (insertAfter === -1) results.push(rm);
+      else results.splice(insertAfter + 1, 0, rm);
+    }
+
+    allResults = results;
+
+    // Stats
+    let cA=0,cR=0,cC=0,cN=0;
+    for (const r of results) {
+      if (r.status === 'ADDED') cA++;
+      else if (r.status === 'REMOVED') cR++;
+      else if (r.status === 'NOT CHANGE') cN++;
+      else cC++;
+    }
+    document.getElementById('sAdded').textContent   = cA;
+    document.getElementById('sRemoved').textContent = cR;
+    document.getElementById('sChanged').textContent = cC;
+    document.getElementById('sSame').textContent    = cN;
+
+    document.getElementById('statsArea').style.display = 'grid';
+    document.getElementById('toolbar').style.display   = 'flex';
+    document.getElementById('tableWrap').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+
+    setFilter('ALL', document.querySelector('.filter-btn'));
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.className = 'filter-btn';
+    });
+    btn.classList.add('active');
+    renderTable();
+  }
+
+  function renderTable() {
+    const body = document.getElementById('resultBody');
+    body.innerHTML = '';
+    const rows = currentFilter === 'ALL'
+      ? allResults
+      : allResults.filter(r => {
+          if (currentFilter === 'CHANGED') return r.status !== 'ADDED' && r.status !== 'REMOVED' && r.status !== 'NOT CHANGE';
+          return r.status === currentFilter;
+        });
+
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const isChanged = r.status !== 'ADDED' && r.status !== 'REMOVED' && r.status !== 'NOT CHANGE';
+      const badgeClass = r.status === 'ADDED' ? 'badge-added'
+        : r.status === 'REMOVED' ? 'badge-removed'
+        : isChanged ? 'badge-changed'
+        : 'badge-nochange';
+
+      const statusHtml = isChanged
+        ? r.status.split('\n').map(s => `<span class="badge badge-changed change-line">${s}</span>`).join('')
+        : `<span class="badge ${badgeClass}">${r.status}</span>`;
+
+      tr.innerHTML = `
+        <td>${statusHtml}</td>
+        <td>${r.level}</td>
+        <td>${r.title}</td>
+        <td style="color:var(--muted)">${r.parent}</td>
+        <td>${r.oldRev || '—'}</td>
+        <td>${r.newRev || '—'}</td>
+        <td>${r.oldQty !== undefined ? r.oldQty : '—'}</td>
+        <td>${r.newQty !== undefined ? r.newQty : '—'}</td>
+      `;
+      body.appendChild(tr);
+    }
+  }
+
+  function exportExcel() {
+    const ws_data = [['Status','Level','Title','Parent','OLD Revision','NEW Revision','OLD QTY','NEW QTY']];
+    for (const r of allResults) {
+      ws_data.push([r.status, r.level, r.title, r.parent, r.oldRev, r.newRev, r.oldQty, r.newQty]);
+    }
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [22,8,20,20,14,14,10,10].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, 'RESULT');
+
+    // OLD TITLES sheet
+    const seen = new Set();
+    const otData = [['OLD TITLE','OLD REVISION']];
+    for (const r of allResults) {
+      if ((r.status.includes('REVISION CHANGE') || r.status === 'REMOVED') && r.oldRev) {
+        const key = r.title + '|' + r.oldRev;
+        if (!seen.has(key)) { seen.add(key); otData.push([r.title, r.oldRev]); }
+      }
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(otData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'OLD TITLES');
+
+    XLSX.writeFile(wb, 'BOM_Compare_Result.xlsx');
+  }
+</script>
+
+</body>
+</html>
