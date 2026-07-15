@@ -231,7 +231,7 @@
       const rows = [];
       for (let i = 1; i < data.length; i++) {
         const r = data[i];
-        if (!r[0] || isNaN(Number(r[0]))) continue;
+        if (r[0] == null || r[0] === '' || isNaN(Number(r[0]))) continue;
         rows.push({
           level:  Math.round(Number(r[0])),
           title:  String(r[1] != null ? r[1] : '').trim(),
