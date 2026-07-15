@@ -233,13 +233,13 @@
         const r = data[i];
         if (!r[0] || isNaN(Number(r[0]))) continue;
         rows.push({
-          level:  Number(r[0]),
-          title:  String(r[1] || '').trim(),
-          rev:    String(r[2] || '').trim(),
-          desc:   String(r[3] || '').trim(),
-          parent: String(r[4] || '').trim(),
-          parentRev: String(r[5] || '').trim(),
-          qty:    Number(r[6]) || 0
+          level:  Math.round(Number(r[0])),
+          title:  String(r[1] != null ? r[1] : '').trim(),
+          rev:    String(r[2] != null ? r[2] : '').trim(),
+          desc:   String(r[3] != null ? r[3] : '').trim(),
+          parent: String(r[4] != null ? r[4] : '').trim(),
+          parentRev: String(r[5] != null ? r[5] : '').trim(),
+          qty:    r[6] != null ? Math.round(Number(r[6])) : 0
         });
       }
       if (type === 'old') {
